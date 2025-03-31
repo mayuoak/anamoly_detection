@@ -1,0 +1,9 @@
+pandas
+openai
+langchain
+langchain-community
+langchain-openai
+datetime
+transformers 
+torch
+scikit-learn
