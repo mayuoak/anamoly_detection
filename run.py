@@ -1,7 +1,7 @@
 import pandas as pd
 from classes import *
 
-API_KEY = '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'
+API_KEY = 'api_key'
 model_name = 'gpt-4o'
 
 
