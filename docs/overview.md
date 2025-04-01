@@ -103,6 +103,12 @@ python experiments.py
 #### This script will run multiple experiments with different contamination values and store the results in `output/metadata.json` file
 ---
 
+### AI Impact
+- AI powerd NLP agents are able to effectively extract Entities, sentiments from the text as features.
+- intelligent and trustworthy automation
+- AI identify hidden trends that human might overlook
+
+---
 ### Future work
 - Experimenting with multiple vectorizers output concatenated. Need experimentation.
 - Experimenting with multiple ML algorithms with voting between 2 or more ML algorithms (Local Outlier Factor (LOF) with isolationForest is what comes to mind)
