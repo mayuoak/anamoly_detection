@@ -12,8 +12,12 @@ import numpy as np
 import openai
 import ast
 import os
+from sklearn.preprocessing import OneHotEncoder
+from nltk.corpus import stopwords
+import string
 
-api_calls = 0
+
+api_calls = 0 # global variable for counting api calls
 
 # base class for agent
 class BaseAgent:
@@ -21,13 +25,12 @@ class BaseAgent:
     def __init__(self, model_name: str, api_key: str):
         self.llm = ChatOpenAI(model_name=model_name, openai_api_key=api_key)
         self.api_calls = 0
-        self.batch_size = 3
+        self.batch_size = 10
 
     def process(self, text: str):
         raise NotImplementedError("should be implemented in subclasses")
     
     def get_response(self, texts: str):
-        #pdb.set_trace()
         global api_calls
         batch_messages = [HumanMessage(content=text) for text in texts]
         responses = self.llm.batch(texts)
@@ -36,7 +39,6 @@ class BaseAgent:
         return responses
     
     def update_metadata(self):
-        #pdb.set_trace()
         if not os.path.exists("output/metadata.json"):
             return
         with open("output/metadata.json", "r+") as f:
@@ -46,27 +48,24 @@ class BaseAgent:
             json.dump(metadata, f)
             f.truncate()
         
-    
 class ParaphraseAgent(BaseAgent):
     def process(self, texts: str):
-        #pdb.set_trace()
         responses = self.get_response(texts)
         _responses = [re.sub(r'^["\']+|["\']+$', '', response.content.strip()) for response in responses] # sometimes model gives extra quotes thinking this is quoted sentence
         return _responses
 
 class Augmenter_Agent:
-    def __init__(self, paraphrase_agent: ParaphraseAgent, num_variations: int = 3, batch_size: int = 3):
+    def __init__(self, paraphrase_agent: ParaphraseAgent, num_variations: int = 3):
         self.paraphrase_agent = paraphrase_agent
         self.num_variations = num_variations
-        self.batch_size = batch_size
 
     def augment_data(self, df: pd.DataFrame):
         synthetic_texts = []
         texts = df['text'].tolist()
         # Process in batches
         for _ in range(self.num_variations):
-            for i in range(0, len(texts), self.batch_size):
-                batch_texts = [f"Paraphrase this: '{text}'" for text in texts[i:i + self.batch_size]]
+            for i in range(0, len(texts), self.paraphrase_agent.batch_size):
+                batch_texts = [f"Paraphrase this: '{text}'" for text in texts[i:i + self.paraphrase_agent.batch_size]]
                 responses = self.paraphrase_agent.get_response(batch_texts)
                 for response in responses:
                     paraphrased_text = response.content.strip()
@@ -76,7 +75,7 @@ class Augmenter_Agent:
                         "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S").strip()
                     })
             # Process remaining texts
-            remaining_texts = [f"Paraphrase this: '{text}'" for text in texts[i:i + self.batch_size]]
+            remaining_texts = [f"Paraphrase this: '{text}'" for text in texts[i:i + self.paraphrase_agent.batch_size]]
             responses = self.paraphrase_agent.get_response(remaining_texts)
             for response in responses:
                 paraphrased_text = response.content.strip()
@@ -107,11 +106,12 @@ class NERAgent(BaseAgent):
             batch_texts = [f"Extract and give only entities without description in comma seperated format from this text: '{text}'. Give blank output if no entities are present." for text in texts[i:i + self.batch_size]]
             responses = self.get_response(batch_texts)
             entities.extend([response.content.strip() for response in responses])
+            if len(batch_texts) != len(responses):
+                raise ValueError(f"Batch size mismatch: {len(batch_texts)} != {len(responses)}")
         # Process remaining texts
         remaining_texts = texts[len(texts) - len(texts) % self.batch_size:]
         batch_texts = [f"Extract and give only entities without description in comma seperated format from this text: '{text}'. Give blank output if no entities are present." for text in remaining_texts]
         responses = self.get_response(batch_texts)
-        #_responses = [re.sub(r'^["\']+|["\']+$', '', response.content.strip()) for response in responses] # sometimes model gives extra quotes thinking this is quoted sentence
         entities.extend([response.content.strip() for response in responses])
         return entities
     
@@ -162,14 +162,37 @@ class themeAgent(BaseAgent):
     
 class anomalyAgent(BaseAgent):
     def process(self, df: pd.DataFrame):
-        model = IsolationForest(contamination=0.2, random_state=99)
-        X = np.vstack(df['embedding'].values)
+        sentiment_encoder = OneHotEncoder()
+        sentiment_encoded = sentiment_encoder.fit_transform(df[['sentiment']])
+        sentiment_encoded = np.array(sentiment_encoded.toarray(), dtype=np.float32)
+
+        # Extract text-based features
+        additional_features = df[['text_length', 'word_count', 'stopword_ratio', 'punctuation_ratio', 'capitalization_ratio']].to_numpy()
+
+
+        model = IsolationForest(contamination=0.35, random_state=99)
+        X_embeddings = np.vstack(df['embedding'].values)
+        # Concatenate embeddings, sentiment
+        X = np.hstack((X_embeddings, sentiment_encoded, additional_features))
         model.fit(X)
         df['anomaly_score'] = model.decision_function(X)
         df['is_anomaly'] = model.predict(X) == -1
-        #pdb.set_trace()
         return df
 
+class textFeatureAgent(BaseAgent):
+    # add features in addition to other features like text length, word count, stopword_ratio, puntuation_ratio, capitalization_ratio 
+    def __init__(self, model_name: str, api_key: str): 
+        super().__init__(model_name, api_key)
+    
+    def process(self, df: pd.DataFrame):
+        stopwords_set = set(stopwords.words('english'))
+        df['text_length'] = df['text'].apply(lambda x: len(x.split()))
+        df['word_count'] = df['text'].apply(lambda x: len(x.split()))
+        df['stopword_ratio'] = df['text'].apply(lambda x: len([word for word in x.split() if word.lower() in stopwords_set])) / df['word_count']
+        df['punctuation_ratio'] = df['text'].apply(lambda x: len([char for char in x if char in string.punctuation])) / df['word_count']
+        df['capitalization_ratio'] = df['text'].apply(lambda x: len([char for char in x if char.isupper()])) / df['word_count']
+        return df
+    
 class vectorizer(BaseAgent):
     def __init__(self, model_name, api_key):
         super().__init__(model_name, api_key)  # Initialize parent class if needed
@@ -213,13 +236,14 @@ class vectorizer(BaseAgent):
         return df
     
 class PipelineManager:
-    def __init__(self, augmenter, ner_agent, sentiment_agent, theme_agent, vectorizer_agent, anomaly_agent):
+    def __init__(self, augmenter, ner_agent, sentiment_agent, theme_agent, vectorizer_agent, anomaly_agent, textfeature_agent):
         self.augmenter = augmenter
         self.ner_agent = ner_agent
         self.sentiment_agent = sentiment_agent
         self.theme_agent = theme_agent
         self.vectorizer_agent = vectorizer_agent
         self.anomaly_agent = anomaly_agent
+        self.textfeature_agent = textfeature_agent
     
     def run_pipeline(self, data):
         print("Augmenting data...")
@@ -236,6 +260,7 @@ class PipelineManager:
         df["NE"] = self.ner_agent.process(df['text'].tolist())
         df["sentiment"] = self.sentiment_agent.process(df['text'].tolist())
         df['theme'] = self.theme_agent.process(df['text'].tolist())
+        self.textfeature_agent.process(df)
         df.to_csv("output/features_data.csv", index=False, quoting=csv.QUOTE_ALL, sep=',')
 
         # step 3: vectorize the data and store vectorized_data.csv

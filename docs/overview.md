@@ -46,6 +46,7 @@ The `vectorizer` class transforms text into numerical embeddings using:
 The `anomalyAgent` applies **Isolation Forest** to:
 - Identify outliers in text embeddings.
 - Assign an `anomaly_score` to each text.
+- Uses embeddings + sentiment features concatenated for more feature coverage
 
 ---
 
@@ -85,6 +86,10 @@ conda create --name anamoly_detection python -y
 conda activate anamoly_detection
 pip install -r requirements.txt
 ```
+```python
+import nltk
+nltk.download('stopwords')
+```
 
 ### **2 Run the Pipeline**
 ```bash
@@ -103,3 +108,6 @@ python experiments.py
 - Experimenting with multiple ML algorithms with voting between 2 or more ML algorithms (Local Outlier Factor (LOF) with isolationForest is what comes to mind)
 - Trying out multiple LLMs in addition to OpenAI
     - Gemini might be better for summarization and Entity Recognition as they are trained on more longer contexts and more multimodal and multilingual data
+- Adding more features like
+    - **TF-IDF Score**
+    - **Part-of-Speech (POS) Tag Ratios**

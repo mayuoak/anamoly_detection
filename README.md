@@ -15,6 +15,10 @@ conda create --name anamoly_detection python -y
 conda activate anamoly_detection
 pip install -r requirements.txt
 ```
+```python
+import nltk
+nltk.download('stopwords')
+```
 
 ### **2 Run the Pipeline**
 ```bash

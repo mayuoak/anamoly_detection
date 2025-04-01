@@ -7,3 +7,4 @@ datetime
 transformers 
 torch
 scikit-learn
+nltk
