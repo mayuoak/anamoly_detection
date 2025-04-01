@@ -29,13 +29,11 @@ python run.py
 ```bash
 python experiments.py
 ```
+#### This script will run multiple experiments with different contamination values and store the results in `output/metadata.json` file
+
 
 ### evaluate with hypothetical ground truth
 ```bash
 python evaluate.py
 ```
 
-#### This script will run multiple experiments with different contamination values and store the results in `output/metadata.json` file
-
-## **When to Use Isolation Forest?**
-✅ Ideal for **unsupervised anomaly detection
