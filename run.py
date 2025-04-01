@@ -17,7 +17,7 @@ textfeature_agent = textFeatureAgent(model_name=model_name, api_key=API_KEY)
 
 
 #augmenter and pipeline manager
-augmenter_agent = Augmenter_Agent(paraphrase_agent=paraphrase_agent, num_variations=5)
+augmenter_agent = Augmenter_Agent(paraphrase_agent=paraphrase_agent, num_variations=10)
 pipeline = PipelineManager(augmenter=augmenter_agent, ner_agent=ner_agent, sentiment_agent=sentiment_agent, theme_agent=theme_agent, vectorizer_agent=vectorizer_agent, anomaly_agent=anomaly_agent, textfeature_agent= textfeature_agent)
 
 augmented_df = pipeline.run_pipeline('data/data.csv')

@@ -117,3 +117,6 @@ python experiments.py
 - Adding more features like
     - **TF-IDF Score**
     - **Part-of-Speech (POS) Tag Ratios**
+
+### Note
+- Since there is no GT given it is very difficult to estimate the model performance. i have tried to select anomalous texts based on my understanding.

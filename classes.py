@@ -170,7 +170,7 @@ class anomalyAgent(BaseAgent):
         additional_features = df[['text_length', 'word_count', 'stopword_ratio', 'punctuation_ratio', 'capitalization_ratio']].to_numpy()
 
 
-        model = IsolationForest(contamination=0.35, random_state=99)
+        model = IsolationForest(contamination=0.15, random_state=99)
         X_embeddings = np.vstack(df['embedding'].values)
         # Concatenate embeddings, sentiment
         X = np.hstack((X_embeddings, sentiment_encoded, additional_features))
@@ -246,28 +246,28 @@ class PipelineManager:
         self.textfeature_agent = textfeature_agent
     
     def run_pipeline(self, data):
-        print("Augmenting data...")
-        df = pd.read_csv(data)
-        augmented_df, metadata = self.augmenter.augment_data(df)
-        augmented_df.to_csv("output/augmented_data.csv", index=False, quoting=csv.QUOTE_ALL, sep=',')
-        with open("output/metadata.json", "w") as f:
-            json.dump(metadata, f)
+        # print("Augmenting data...")
+        # df = pd.read_csv(data)
+        # augmented_df, metadata = self.augmenter.augment_data(df)
+        # augmented_df.to_csv("output/augmented_data.csv", index=False, quoting=csv.QUOTE_ALL, sep=',')
+        # with open("output/metadata.json", "w") as f:
+        #     json.dump(metadata, f)
 
 
-        # step 2: Feature Extraction
-        print("Extracting features...")
-        df = pd.read_csv('output/augmented_data.csv')
-        df["NE"] = self.ner_agent.process(df['text'].tolist())
-        df["sentiment"] = self.sentiment_agent.process(df['text'].tolist())
-        df['theme'] = self.theme_agent.process(df['text'].tolist())
-        self.textfeature_agent.process(df)
-        df.to_csv("output/features_data.csv", index=False, quoting=csv.QUOTE_ALL, sep=',')
+        # # step 2: Feature Extraction
+        # print("Extracting features...")
+        # df = pd.read_csv('output/augmented_data.csv')
+        # df["NE"] = self.ner_agent.process(df['text'].tolist())
+        # df["sentiment"] = self.sentiment_agent.process(df['text'].tolist())
+        # df['theme'] = self.theme_agent.process(df['text'].tolist())
+        # self.textfeature_agent.process(df)
+        # df.to_csv("output/features_data.csv", index=False, quoting=csv.QUOTE_ALL, sep=',')
 
-        # step 3: vectorize the data and store vectorized_data.csv
-        print("Vectorizing data...")
-        df = pd.read_csv('output/features_data.csv')
-        df = self.vectorizer_agent.process(df)
-        df.to_csv("output/vectorized_data.csv", index=False, quoting=csv.QUOTE_ALL, sep=',')
+        # # step 3: vectorize the data and store vectorized_data.csv
+        # print("Vectorizing data...")
+        # df = pd.read_csv('output/features_data.csv')
+        # df = self.vectorizer_agent.process(df)
+        # df.to_csv("output/vectorized_data.csv", index=False, quoting=csv.QUOTE_ALL, sep=',')
 
         # step 3: Anomaly detection
         print("Detecting Anomaly...")

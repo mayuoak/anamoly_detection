@@ -1,1 +1,1 @@
-{"original_rows": 10, "augmented_rows": 110, "augmentation_ratio": 11.0, "num_variations_per_text": 5, "api_calls": 57, "experiments": {"0.05": 6, "0.15": 17, "0.25": 28, "0.35": 39}}
+{"original_rows": 10, "augmented_rows": 210, "augmentation_ratio": 21.0, "num_variations_per_text": 10, "api_calls": 107, "experiments": {"0.05": 11, "0.15": 32, "0.25": 53, "0.35": 74}}
