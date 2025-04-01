@@ -31,10 +31,9 @@ class BaseAgent:
         global api_calls
         batch_messages = [HumanMessage(content=text) for text in texts]
         responses = self.llm.batch(texts)
-        _responses = [re.sub(r'^["\']+|["\']+$', '', response.content.strip()) for response in responses] # sometimes model gives extra quotes thinking this is quoted sentence
         api_calls += 1
         self.update_metadata()
-        return _responses
+        return responses
     
     def update_metadata(self):
         #pdb.set_trace()
@@ -52,7 +51,8 @@ class ParaphraseAgent(BaseAgent):
     def process(self, texts: str):
         #pdb.set_trace()
         responses = self.get_response(texts)
-        return responses
+        _responses = [re.sub(r'^["\']+|["\']+$', '', response.content.strip()) for response in responses] # sometimes model gives extra quotes thinking this is quoted sentence
+        return _responses
 
 class Augmenter_Agent:
     def __init__(self, paraphrase_agent: ParaphraseAgent, num_variations: int = 3, batch_size: int = 3):
@@ -69,16 +69,17 @@ class Augmenter_Agent:
                 batch_texts = [f"Paraphrase this: '{text}'" for text in texts[i:i + self.batch_size]]
                 responses = self.paraphrase_agent.get_response(batch_texts)
                 for response in responses:
-                    paraphrased_text = response
+                    paraphrased_text = response.content.strip()
                     synthetic_texts.append({
                         "id": len(df) + len(synthetic_texts) + 1,
                         "text": paraphrased_text.strip(),
                         "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S").strip()
                     })
             # Process remaining texts
-            remaining_texts = texts[len(texts) - len(texts) % self.batch_size:]
-            for text in remaining_texts:
-                paraphrased_text = self.paraphrase_agent.process(text=text)
+            remaining_texts = [f"Paraphrase this: '{text}'" for text in texts[i:i + self.batch_size]]
+            responses = self.paraphrase_agent.get_response(remaining_texts)
+            for response in responses:
+                paraphrased_text = response.content.strip()
                 synthetic_texts.append({
                     "id": len(df) + len(synthetic_texts) + 1,
                     "text": paraphrased_text.strip(),
@@ -105,12 +106,13 @@ class NERAgent(BaseAgent):
         for i in range(0, len(texts), self.batch_size):
             batch_texts = [f"Extract and give only entities without description in comma seperated format from this text: '{text}'. Give blank output if no entities are present." for text in texts[i:i + self.batch_size]]
             responses = self.get_response(batch_texts)
-            entities.extend(responses)
+            entities.extend([response.content.strip() for response in responses])
         # Process remaining texts
         remaining_texts = texts[len(texts) - len(texts) % self.batch_size:]
         batch_texts = [f"Extract and give only entities without description in comma seperated format from this text: '{text}'. Give blank output if no entities are present." for text in remaining_texts]
         responses = self.get_response(batch_texts)
-        entities.extend(responses)
+        #_responses = [re.sub(r'^["\']+|["\']+$', '', response.content.strip()) for response in responses] # sometimes model gives extra quotes thinking this is quoted sentence
+        entities.extend([response.content.strip() for response in responses])
         return entities
     
 class sentimentAgent(BaseAgent):
@@ -131,13 +133,14 @@ class sentimentAgent(BaseAgent):
         for i in range(0, len(texts), self.batch_size):
             batch_texts = [f"Analyse sentiment and give output in either of positive, negative, neutral of the text: '{text}'" for text in texts[i:i + self.batch_size]]
             responses = self.get_response(batch_texts)
-            _sentiments = [self.find_sentiment(response) for response in responses]
+            _responses = [re.sub(r'^["\']+|["\']+$', '', response.content.strip()) for response in responses] # sometimes model gives extra quotes thinking this is quoted sentence
+            _sentiments = [self.find_sentiment(response) for response in _responses]
             sentiments.extend(_sentiments)
         # Process remaining texts   
         remaining_texts = texts[len(texts) - len(texts) % self.batch_size:]
         batch_texts = [f"Analyse sentiment and give output in either of positive, negative, neutral of the text: '{text}'" for text in remaining_texts]
         responses = self.get_response(batch_texts)
-        _sentiments = [self.find_sentiment(response) for response in responses]
+        _sentiments = [self.find_sentiment(response.content.strip()) for response in responses]
         sentiments.extend(_sentiments)
         return sentiments
 
@@ -147,12 +150,14 @@ class themeAgent(BaseAgent):
         for i in range(0, len(text), self.batch_size):
             batch_texts = [f"Identify themes in comma seperated format in this text: '{text}'." for text in text[i:i + self.batch_size]]
             responses = self.get_response(batch_texts)
-            themes.extend(responses)
+            _responses = [re.sub(r'^["\']+|["\']+$', '', response.content.strip()) for response in responses] # sometimes model gives extra quotes thinking this is quoted sentence
+            themes.extend([res.split(',') for res in _responses])
         # Process remaining texts
         remaining_texts = text[len(text) - len(text) % self.batch_size:]
         batch_texts = [f"Identify themes in comma seperated format in this text: '{text}'." for text in remaining_texts]
         responses = self.get_response(batch_texts)
-        themes.extend(responses)
+        _responses = [re.sub(r'^["\']+|["\']+$', '', response.content.strip()) for response in responses] # sometimes model gives extra quotes thinking this is quoted sentence
+        themes.extend([res.split(',') for res in _responses])
         return themes
     
 class anomalyAgent(BaseAgent):
@@ -178,7 +183,28 @@ class vectorizer(BaseAgent):
         df['embedding'] = df['embedding'].apply(np.array)
 
     def get_openAI_embedding(self, df):
-        embeddings = [self.client.embeddings.create(model='text-embedding-3-small', input=text).data[0].embedding for text in df['text']]
+        global api_calls
+        texts = df['text'].tolist()
+        embeddings = []
+        for i in range(0, len(texts), self.batch_size):
+            batch_texts = texts[i:i + self.batch_size]
+            batch_embeddings = self.client.embeddings.create(
+                model='text-embedding-3-small', 
+                input=batch_texts)
+            api_calls += 1
+            
+            embeddings.extend([embedding.embedding for embedding in batch_embeddings.data])
+
+        # Process remaining texts
+        remaining_texts = texts[len(texts) - len(texts) % self.batch_size:]
+        if len(remaining_texts) > 0:
+            #pdb.set_trace()
+            batch_embeddings = self.client.embeddings.create(
+                model='text-embedding-3-small',
+                input=remaining_texts)
+            api_calls += 1
+            embeddings.extend([embedding.embedding for embedding in batch_embeddings.data])
+        self.update_metadata()
         df['embedding'] = embeddings
 
     def process(self, df: pd.DataFrame):
