@@ -1,1 +1,1 @@
-{"original_rows": 10, "augmented_rows": 20, "augmentation_ratio": 2.0, "num_variations_per_text": 1}
+{"original_rows": 3, "augmented_rows": 6, "augmentation_ratio": 2.0, "num_variations_per_text": 1, "api_calls": 10}
