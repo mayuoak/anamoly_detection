@@ -1,0 +1,16 @@
+#  LLM & ML-Powered Text Processing Pipeline
+
+##  Overview
+This project implements a **pipeline for text processing** using **Large Language Models (LLMs)** and **Machine Learning (ML)** techniques. The pipeline consists of multiple agents that perform:
+- **Data augmentation**
+- **Entity recognition (ER)**
+- **Sentiment analysis**
+- **Theme extraction**
+- **Vectorization (TF-IDF & OpenAI embeddings)**
+- **Anomaly detection (Isolation Forest)**
+
+## ️ Architecture
+The pipeline is modular and built using **LangChain, OpenAI API, and Scikit-learn**.
+
+## **1 LLM Design (LangChain & OpenAI)**
+The pipeline leverages **LangChain's `ChatOpenAI` API** (GPT-based models) to handle NLP tasks.
